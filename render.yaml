@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: mailguard-api
+    runtime: python
+    buildCommand: echo "Ready"
+    startCommand: python server.py
+    envVars:
+      - key: PORT
+        value: 10000

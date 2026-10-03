@@ -1,0 +1,199 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "MailGuard Enterprise - Email Verification & Deliverability API",
+    "description": "Enterprise-grade email verification engine. Validates syntax, queries live Mail Exchange (MX) records via DNS-over-HTTPS (Cloudflare & Google DoH), filters 300+ disposable/burner domains, detects role-based accounts, flags typos with smart suggestions, and provides a 0-100 deliverability score in sub-100ms.",
+    "version": "1.2.0",
+    "contact": {
+      "name": "API Support - VIBE NOW",
+      "email": "vineetmaindola@gmail.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://mailguard-api-e9uj.onrender.com",
+      "description": "Live Production Cloud Server"
+    }
+  ],
+  "paths": {
+    "/v1/verify": {
+      "get": {
+        "summary": "Verify Single Email (GET)",
+        "description": "Performs full deliverability check, MX resolution, disposable domain detection, and risk scoring.",
+        "operationId": "verifyEmailGet",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "query",
+            "required": true,
+            "description": "The target email address to verify",
+            "schema": {
+              "type": "string",
+              "example": "support@stripe.com"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detailed email validation report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "email": { "type": "string", "example": "support@stripe.com" },
+                    "verdict": { "type": "string", "example": "DELIVERABLE" },
+                    "score": { "type": "integer", "example": 80 },
+                    "deliverable": { "type": "boolean", "example": true },
+                    "reasons": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "example": ["ROLE_BASED_GENERIC_ACCOUNT", "CORPORATE_BUSINESS_DOMAIN"]
+                    },
+                    "syntax": {
+                      "type": "object",
+                      "properties": {
+                        "valid": { "type": "boolean", "example": true },
+                        "user": { "type": "string", "example": "support" },
+                        "domain": { "type": "string", "example": "stripe.com" },
+                        "length": { "type": "integer", "example": 18 }
+                      }
+                    },
+                    "domain": {
+                      "type": "object",
+                      "properties": {
+                        "exists": { "type": "boolean", "example": true },
+                        "has_mx": { "type": "boolean", "example": true },
+                        "primary_mx": { "type": "string", "example": "aspmx.l.google.com." },
+                        "records": { "type": "array", "items": { "type": "string" } }
+                      }
+                    },
+                    "attributes": {
+                      "type": "object",
+                      "properties": {
+                        "is_disposable": { "type": "boolean", "example": false },
+                        "is_free_provider": { "type": "boolean", "example": false },
+                        "is_role_account": { "type": "boolean", "example": true },
+                        "is_corporate": { "type": "boolean", "example": true }
+                      }
+                    },
+                    "did_you_mean": { "type": "string", "nullable": true, "example": null },
+                    "processing_time_ms": { "type": "number", "example": 49.25 }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing email parameter"
+          }
+        }
+      },
+      "post": {
+        "summary": "Verify Single Email (POST JSON)",
+        "description": "JSON payload verification endpoint for webhook integrations and backend pipelines.",
+        "operationId": "verifyEmailPost",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "example": "contact@tesla.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Detailed email validation report"
+          }
+        }
+      }
+    },
+    "/v1/batch-verify": {
+      "post": {
+        "summary": "Batch Email Verification (Up to 50)",
+        "description": "High-throughput batch verification for bulk contact lists, CRM imports, and lead scrubbing.",
+        "operationId": "batchVerifyPost",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["emails"],
+                "properties": {
+                  "emails": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": [
+                      "johndoe@gmail.com",
+                      "temp_user@mailinator.com",
+                      "billing@stripe.com",
+                      "alex@gmial.com"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Array of verification results with batch summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_submitted": { "type": "integer", "example": 4 },
+                    "total_deliverable": { "type": "integer", "example": 3 },
+                    "total_undeliverable": { "type": "integer", "example": 1 },
+                    "total_disposable_blocked": { "type": "integer", "example": 1 },
+                    "results": {
+                      "type": "array",
+                      "items": { "type": "object" }
+                    },
+                    "batch_processing_time_ms": { "type": "number", "example": 128.5 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "API Service Health Probe",
+        "description": "Uptime monitoring endpoint used by RapidAPI and status checkers.",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Service is operational",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "HEALTHY" },
+                    "service": { "type": "string", "example": "MailGuard Enterprise API" },
+                    "uptime": { "type": "string", "example": "99.99%" },
+                    "timestamp": { "type": "integer", "example": 1727445600 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
